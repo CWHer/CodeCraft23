@@ -2,12 +2,15 @@
 #include <cstring>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 #include <fcntl.h>
 #include <unistd.h>
 
-static const unsigned MAX_RECV_SIZE = 1024; // bytes
-static const bool VERBOSE = false;
+static const unsigned MAX_RECV_SIZE = 4096; // bytes
+static const bool NO_FORWARD = false;
+static const bool INFO_LOG = false;
+static const bool DEBUG_LOG = false;
 static const std::string END_TOKEN = "OK";
 
 class NamedPipe
@@ -24,7 +27,7 @@ public:
         pipe_fd = open(pipe_name.c_str(), O_RDWR);
         if (pipe_fd == -1)
         {
-            std::cerr << "Failed to open pipe: " << pipe_name << std::endl;
+            std::cerr << "[WRAPPER]: Failed to open pipe: " << pipe_name << std::endl;
             exit(EXIT_FAILURE);
         }
     }
@@ -36,19 +39,23 @@ public:
 
     void write(const std::string &msg)
     {
+        if (NO_FORWARD)
+            return;
         if (::write(pipe_fd, msg.c_str(), msg.size()) == -1)
         {
-            std::cerr << "Failed to write to pipe: " << pipe_name << std::endl;
+            std::cerr << "[WRAPPER]: Failed to write to pipe: " << pipe_name << std::endl;
             exit(EXIT_FAILURE);
         }
     }
 
     std::string read()
     {
+        if (NO_FORWARD)
+            return "";
         memset(buf, 0, sizeof(buf));
         if (::read(pipe_fd, buf, sizeof(buf)) == -1)
         {
-            std::cerr << "Failed to read from pipe: " << pipe_name << std::endl;
+            std::cerr << "[WRAPPER]: Failed to read from pipe: " << pipe_name << std::endl;
             exit(EXIT_FAILURE);
         }
         return std::string(buf);
@@ -79,8 +86,8 @@ public:
         // forward to pipe
         out_pipe.write(observation);
 
-        if (VERBOSE)
-            std::cerr << "Map received: \n"
+        if (DEBUG_LOG)
+            std::cerr << "[WRAPPER]: Map received: \n"
                       << observation << std::endl;
 
         std::cout << END_TOKEN << std::endl;
@@ -98,14 +105,25 @@ public:
             observation += line + "\n";
         }
 
+        // HACK: if the observation is empty, the environment has been closed
+        if (observation.empty())
+        {
+            std::cerr << "[WARN]: Empty observation received, "
+                      << "last frame id: " << frame_id << std::endl;
+            std::cerr << "[WRAPPER]: Environment closed" << std::endl;
+            out_pipe.write(END_TOKEN);
+            std::cerr << "[WRAPPER]: Wrapper closed" << std::endl;
+            exit(EXIT_SUCCESS);
+        }
+
         // forward to pipe
         out_pipe.write(observation);
 
         std::stringstream ss(observation);
         ss >> frame_id; // read the frame id
 
-        if (VERBOSE)
-            std::cerr << "Observation received: \n"
+        if (DEBUG_LOG)
+            std::cerr << "[WRAPPER]: Observation received: \n"
                       << observation << std::endl;
     }
 
@@ -114,8 +132,8 @@ public:
         // read the action from pipe
         std::string action = in_pipe.read();
 
-        if (VERBOSE)
-            std::cerr << "Action received: \n"
+        if (DEBUG_LOG)
+            std::cerr << "[WRAPPER]: Action received: \n"
                       << action << std::endl;
 
         std::cout << frame_id << "\n"
@@ -126,14 +144,15 @@ public:
 
 int main(const int argc, const char *argv[])
 {
+    std::ios::sync_with_stdio(false);
     if (argc < 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <pipename>" << std::endl;
+        std::cerr << "[WRAPPER]: Usage: " << argv[0] << " <pipename>" << std::endl;
         return 1;
     }
     std::string pipe_name(argv[1]);
-    std::cerr << "Input pipe: " << pipe_name << "_in" << '\n'
-              << "Output pipe: " << pipe_name << "_out" << std::endl;
+    std::cerr << "[WRAPPER]: Input pipe: " << pipe_name << "_in" << '\n'
+              << "[WRAPPER]: Output pipe: " << pipe_name << "_out" << std::endl;
 
     NamedPipe in_pipe(pipe_name + "_in");
     NamedPipe out_pipe(pipe_name + "_out");
@@ -143,16 +162,32 @@ int main(const int argc, const char *argv[])
     int loop_count = 0;
     while (!std::cin.eof())
     {
-        if (VERBOSE)
+        if (INFO_LOG)
         {
-            std::cerr << "Loop count: " << loop_count << std::endl;
+            std::cerr << "[WRAPPER]: Loop count: " << loop_count << std::endl;
             loop_count++;
         }
+        auto start = std::chrono::high_resolution_clock::now();
         agent.recv();
+        auto recv_duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now() - start);
+        start = std::chrono::high_resolution_clock::now();
         agent.send();
+        auto send_duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now() - start);
+        if (INFO_LOG)
+        {
+            std::cerr << "[WRAPPER]: Recv duration: " << recv_duration.count() << " ms\n"
+                      << "[WRAPPER]: Send duration: " << send_duration.count() << " ms\n"
+                      << "[WRAPPER]: Total duration: " << (recv_duration + send_duration).count() << " ms" << std::endl;
+        }
     }
 
+    std::cerr << "[WRAPPER]: Environment closed" << std::endl;
     out_pipe.write(END_TOKEN);
+    std::cerr << "[WRAPPER]: Wrapper closed" << std::endl;
 
     return 0;
 }
