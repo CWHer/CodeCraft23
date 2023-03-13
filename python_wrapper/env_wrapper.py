@@ -14,10 +14,68 @@ class EnvWrapper:
         self.out_pipe_name = args.pipe_name + "_in"
         os.mkfifo(self.in_pipe_name)
         os.mkfifo(self.out_pipe_name)
-        self.in_pipe = os.open(self.in_pipe_name,
-                               os.O_SYNC | os.O_CREAT | os.O_RDWR)
-        self.out_pipe = os.open(self.out_pipe_name,
-                                os.O_SYNC | os.O_CREAT | os.O_RDWR)
+    @staticmethod
+    def _parseObs(obs) -> Optional[Dict]:
+        obs = obs.decode(encoding="ASCII")
+        if obs == EnvWrapper.END_TOKEN:
+            return None
+
+        def _parseBaseInfo(lines: List[str]):
+            frame_id, money = tuple(map(int, lines.pop(0).split()))
+            return {
+                "frame_id": frame_id,
+                "money": money,
+            }
+
+        def _parseStation(lines: List[str]):
+            station_specs = {
+                "station_type": int,
+                "loc_x": float,
+                "loc_y": float,
+                "remain_time": int,
+                "input_status": int,
+                "output_status": int,
+            }
+
+            num_stations = int(lines.pop(0))
+            stations = []
+            for _ in range(num_stations):
+                items = lines.pop(0).split()
+                station = {
+                    key: station_specs[key](value)
+                    for key, value in zip(station_specs.keys(), items)
+                }
+                stations.append(station)
+            return {"stations": stations}
+
+        def _parseRobots(lines: List[str]):
+            robot_specs = {
+                "station_id": int,
+                "item_type": int,
+                "time_coef": float,
+                "momentum_coef": float,
+                "angular_speed": float,
+                "line_speed": float,
+                "theta": float,
+                "loc_x": float,
+                "loc_y": float,
+            }
+            robots = []
+            for _ in range(4):
+                items = lines.pop(0).split()
+                robot = {
+                    key: robot_specs[key](value)
+                    for key, value in zip(robot_specs.keys(), items)
+                }
+                robots.append(robot)
+            return {"robots": robots}
+
+        obs_dict: Dict[str, Any] = {}
+        lines = obs.split('\n')
+        obs_dict.update(_parseBaseInfo(lines))
+        obs_dict.update(_parseStation(lines))
+        obs_dict.update(_parseRobots(lines))
+        return obs_dict
 
         def launchEnv():
             command = f"{args.env_binary_name} {args.env_args} "\
