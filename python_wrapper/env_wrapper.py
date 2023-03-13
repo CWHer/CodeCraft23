@@ -2,7 +2,7 @@ import argparse
 import multiprocessing
 import os
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class EnvWrapper:
@@ -12,8 +12,30 @@ class EnvWrapper:
     def __init__(self, args) -> None:
         self.in_pipe_name = args.pipe_name + "_out"
         self.out_pipe_name = args.pipe_name + "_in"
+
+        self.env_process = None
+        self.in_pipe = None
+        self.out_pipe = None
+
+    def _cleanEnv(self):
+        if self.env_process is not None:
+            self.env_process.terminate()
+
+    def _makePipe(self):
         os.mkfifo(self.in_pipe_name)
         os.mkfifo(self.out_pipe_name)
+        pipe_flag = os.O_SYNC | os.O_CREAT | os.O_RDWR
+        self.in_pipe = os.open(self.in_pipe_name, pipe_flag)
+        self.out_pipe = os.open(self.out_pipe_name, pipe_flag)
+
+    def _removePipe(self):
+        if self.in_pipe is not None \
+                and self.out_pipe is not None:
+            os.close(self.in_pipe)
+            os.close(self.out_pipe)
+            os.remove(self.in_pipe_name)
+            os.remove(self.out_pipe_name)
+
     @staticmethod
     def _parseObs(obs) -> Optional[Dict]:
         obs = obs.decode(encoding="ASCII")
@@ -77,6 +99,7 @@ class EnvWrapper:
         obs_dict.update(_parseRobots(lines))
         return obs_dict
 
+    def reset(self):
         def launchEnv():
             command = f"{args.env_binary_name} {args.env_args} "\
                 f"-m {args.map_id} \"{args.env_wrapper_name} {args.pipe_name}\""
@@ -84,18 +107,16 @@ class EnvWrapper:
             os.system(f"{args.env_binary_name} {args.env_args} "
                       f"-m {args.map_id} \"{args.env_wrapper_name} {args.pipe_name}\"")
 
+        self._cleanEnv()
+        self._removePipe()
+        self._makePipe()
+
         self.env_process = multiprocessing.Process(target=launchEnv)
         self.env_process.start()
 
-    @staticmethod
-    def _parseObs(obs) -> Dict:
-        # TODO: parse observation ...
-        return obs
-
-    def reset(self):
-        # TODO: add parse observation ...
+        assert self.in_pipe is not None
         observation = os.read(self.in_pipe, self.MAX_READ_SIZE * 10)
-        return self._parseObs(observation)
+        return {"map": observation.decode(encoding="ASCII")}
 
     def recv(self) -> Tuple[Optional[Dict], float, bool, Dict]:
         """
@@ -105,25 +126,19 @@ class EnvWrapper:
             done (boolean): whether the episode has ended, in which case further step() calls will return None
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
+        assert self.in_pipe is not None
         # TODO: add reward ...
-        # TODO: add parse observation ...
         observation = os.read(self.in_pipe, self.MAX_READ_SIZE)
-        observation = observation.decode(encoding="ASCII")
-
-        done = observation == self.END_TOKEN
-
-        return self._parseObs(observation), 0.0, done, {}
+        obs = self._parseObs(observation)
+        return obs, 0.0, obs is None, {}
 
     def send(self, actions: List[str]) -> None:
+        assert self.out_pipe is not None
         os.write(self.out_pipe, '\n'.join(actions).encode(encoding="ASCII"))
 
     def close(self):
-        self.env_process.join()
-
-        os.close(self.in_pipe)
-        os.close(self.out_pipe)
-        os.remove(self.in_pipe_name)
-        os.remove(self.out_pipe_name)
+        self._cleanEnv()
+        self._removePipe()
 
 
 if __name__ == "__main__":
@@ -140,12 +155,20 @@ if __name__ == "__main__":
     env = EnvWrapper(args)
     obs = env.reset()
     agent = SimpleAgent(obs)
-    while True:
+    for _ in range(100):
         obs, reward, done, info = env.recv()
-        if done:
-            break
+        assert not done
         action = agent.act(obs)
         env.send(action)
+
+    for _ in range(2):
+        obs = env.reset()
+        while True:
+            obs, reward, done, info = env.recv()
+            if done:
+                break
+            action = agent.act(obs)
+            env.send(action)
 
     print("[INFO]: Waiting for environment to close...")
     env.close()
