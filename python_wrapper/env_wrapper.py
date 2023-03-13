@@ -71,8 +71,7 @@ class EnvWrapper:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--map-id", default="maps/1.txt")
-    parser.add_argument("--env-binary-name", default="./Robot")
-    # TODO: FIXME: -d takes 20ms to execute, why?
+    parser.add_argument("--env-binary-name", default="./Robot_fast")
     parser.add_argument("--env-args", default="-d")
     parser.add_argument("--env-wrapper-name", default="./env_wrapper")
     parser.add_argument("--pipe-name", default=f"/tmp/pipe_{random.random()}")

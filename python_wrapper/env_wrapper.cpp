@@ -9,7 +9,7 @@
 
 static const unsigned MAX_RECV_SIZE = 4096; // bytes
 static const bool NO_FORWARD = false;
-static const bool INFO_LOG = false;
+static const bool INFO_LOG = true;
 static const bool DEBUG_LOG = false;
 static const std::string END_TOKEN = "OK";
 
@@ -121,6 +121,8 @@ public:
 
         std::stringstream ss(observation);
         ss >> frame_id; // read the frame id
+        if (INFO_LOG)
+            std::cerr << "[WRAPPER]: Frame id: " << frame_id << std::endl;
 
         if (DEBUG_LOG)
             std::cerr << "[WRAPPER]: Observation received: \n"
