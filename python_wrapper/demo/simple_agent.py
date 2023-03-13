@@ -2,19 +2,22 @@ from typing import List
 
 
 class SimpleAgent:
-    def __init__(self, observation):
+    def __init__(self, observation, info_log=False):
+        self.info_log = info_log
         print("[INFO]: SimpleAgent init")
         print("[Py] Observation: ", observation, sep='\n')
 
     def act(self, observation) -> List[str]:
-        print("[INFO]: SimpleAgent act")
-        print("[Py] Observation: ", observation, sep='\n')
+        if self.info_log:
+            print("[INFO]: SimpleAgent act")
+            print("[Py] Observation: ", observation, sep='\n')
         line_speed, angle_speed = 3, 1.5
         action = []
         for robot_id in range(4):
             action.append(f"forward {robot_id} {line_speed}")
             action.append(f"rotate {robot_id} {angle_speed}")
-        print("[Py] Action: ", action, sep='\n')
+        if self.info_log:
+            print("[Py] Action: ", action, sep='\n')
         return action
 
 
