@@ -118,19 +118,16 @@ class EnvWrapper:
         observation = os.read(self.in_pipe, self.MAX_READ_SIZE * 10)
         return {"map": observation.decode(encoding="ASCII")}
 
-    def recv(self) -> Tuple[Optional[Dict], float, bool, Dict]:
+    def recv(self) -> Tuple[Optional[Dict], bool]:
         """
         Returns:
             observation (object): agent's observation of the current environment
-            reward (float) : amount of reward returned after previous action
             done (boolean): whether the episode has ended, in which case further step() calls will return None
-            info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
         assert self.in_pipe is not None
-        # TODO: add reward ...
         observation = os.read(self.in_pipe, self.MAX_READ_SIZE)
         obs = self._parseObs(observation)
-        return obs, 0.0, obs is None, {}
+        return obs, obs is None
 
     def send(self, actions: List[str]) -> None:
         assert self.out_pipe is not None
@@ -156,7 +153,7 @@ if __name__ == "__main__":
     obs = env.reset()
     agent = SimpleAgent(obs)
     for _ in range(100):
-        obs, reward, done, info = env.recv()
+        obs, done = env.recv()
         assert not done
         action = agent.act(obs)
         env.send(action)
@@ -164,7 +161,7 @@ if __name__ == "__main__":
     for _ in range(2):
         obs = env.reset()
         while True:
-            obs, reward, done, info = env.recv()
+            obs, done = env.recv()
             if done:
                 break
             action = agent.act(obs)
