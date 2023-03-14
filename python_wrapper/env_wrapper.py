@@ -9,10 +9,11 @@ class EnvWrapper:
     MAX_READ_SIZE = 4096
     END_TOKEN = "OK"
 
-    def __init__(self, args) -> None:
-        self.in_pipe_name = args.pipe_name + "_out"
-        self.out_pipe_name = args.pipe_name + "_in"
+    def __init__(self, pipe_name, launch_command) -> None:
+        self.in_pipe_name = pipe_name + "_out"
+        self.out_pipe_name = pipe_name + "_in"
 
+        self.launch_command = launch_command
         self.env_process = None
         self.in_pipe = None
         self.out_pipe = None
@@ -100,18 +101,13 @@ class EnvWrapper:
         return obs_dict
 
     def reset(self):
-        def launchEnv():
-            command = f"{args.env_binary_name} {args.env_args} "\
-                f"-m {args.map_id} \"{args.env_wrapper_name} {args.pipe_name}\""
-            print(f"[INFO]: Launch Environment: {command}")
-            os.system(f"{args.env_binary_name} {args.env_args} "
-                      f"-m {args.map_id} \"{args.env_wrapper_name} {args.pipe_name}\"")
-
         self._cleanEnv()
         self._removePipe()
         self._makePipe()
 
-        self.env_process = multiprocessing.Process(target=launchEnv)
+        self.env_process = multiprocessing.Process(
+            target=lambda cmd: os.system(cmd), args=(self.launch_command, ))
+        print(f"[INFO]: Launch Environment: {self.launch_command}")
         self.env_process.start()
 
         assert self.in_pipe is not None
@@ -149,7 +145,9 @@ if __name__ == "__main__":
     print(args)
 
     from demo.simple_agent import SimpleAgent
-    env = EnvWrapper(args)
+    launch_command = f"{args.env_binary_name} {args.env_args} "\
+        f"-m {args.map_id} \"{args.env_wrapper_name} {args.pipe_name}\""
+    env = EnvWrapper(args.pipe_name, launch_command)
     obs = env.reset()
     agent = SimpleAgent(obs)
     for _ in range(100):
