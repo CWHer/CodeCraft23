@@ -3,7 +3,7 @@ from typing import Any, Dict
 from task_utils import Subtask, SubtaskType, Task, TaskType
 
 
-class SubtaskManager:
+class TaskManager:
     def makeSubtask(self, task: Task, obs: Dict[str, Any]) -> Subtask:
         # NOTE: HACK: we assume all tasks are valid
         if task.task_type == TaskType.BUY:
@@ -14,7 +14,7 @@ class SubtaskManager:
                 station_id=task.station_id
             )
             subtask.update(obs)
-            if self.isDone(subtask):
+            if self.isSubtaskDone(subtask):
                 subtask.subtask_type = SubtaskType.BUY
             return subtask
         elif task.task_type == TaskType.SELL:
@@ -25,7 +25,7 @@ class SubtaskManager:
                 station_id=task.station_id
             )
             subtask.update(obs)
-            if self.isDone(subtask):
+            if self.isSubtaskDone(subtask):
                 subtask.subtask_type = SubtaskType.SELL
             return subtask
         elif task.task_type == TaskType.DESTROY:
@@ -40,7 +40,11 @@ class SubtaskManager:
         else:
             raise NotImplementedError()
 
-    def isDone(self, subtask: Subtask) -> bool:
+    def isTaskDone(self, task: Task, subtask: Subtask) -> bool:
+        return task.task_type == subtask.subtask_type \
+            and self.isSubtaskDone(subtask)
+
+    def isSubtaskDone(self, subtask: Subtask) -> bool:
         if subtask.subtask_type == SubtaskType.GOTO:
             return subtask.robot_stat["station_id"] == subtask.station_id
         elif subtask.subtask_type == SubtaskType.BUY:
@@ -55,7 +59,7 @@ class SubtaskManager:
 
 if __name__ == "__main__":
     # test
-    subtask_manager = SubtaskManager()
+    task_manager = TaskManager()
 
     task = Task(
         TaskType.BUY,
@@ -71,7 +75,7 @@ if __name__ == "__main__":
         ],
         "stations": [{}]
     }
-    subtask = subtask_manager.makeSubtask(task, obs)
+    subtask = task_manager.makeSubtask(task, obs)
     assert subtask.subtask_type == SubtaskType.GOTO
 
     obs = {
@@ -83,6 +87,6 @@ if __name__ == "__main__":
         ],
         "stations": [{}]
     }
-    subtask = subtask_manager.makeSubtask(task, obs)
+    subtask = task_manager.makeSubtask(task, obs)
     assert subtask.subtask_type == SubtaskType.BUY
-    assert subtask_manager.isDone(subtask)
+    assert task_manager.isSubtaskDone(subtask)
