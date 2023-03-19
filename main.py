@@ -3,7 +3,7 @@ import os
 import random
 
 from RobotEnv.env_wrapper import EnvWrapper
-from scheduler import DummyScheduler
+from scheduler import RandomScheduler
 from subtask_to_action import SubtaskToAction
 from task_checker import TaskChecker
 from task_to_subtask import TaskManager
@@ -16,6 +16,7 @@ if __name__ == "__main__":
     parser.add_argument("--env-args", default="-d")
     parser.add_argument("--env-wrapper-name", default="./env_wrapper")
     parser.add_argument("--pipe-name", default=f"/tmp/pipe_{random.random()}")
+    parser.add_argument("--show-statistics", default=True)
     args = parser.parse_args()
     robot_env_path = os.path.join(os.path.dirname(__file__), "RobotEnv")
     args.map_id = os.path.join(robot_env_path, args.map_id)
@@ -31,16 +32,18 @@ if __name__ == "__main__":
     action_generator = SubtaskToAction()
     task_manager = TaskManager()
     task_checker = TaskChecker()
-    scheduler = DummyScheduler()
+    scheduler = RandomScheduler()
+
+    moneys, task_log = [], []
+    start_time = [0 for _ in range(num_robots)]
 
     obs = env.reset()
-    final_reward = 0
     while True:
         obs, done = env.recv()
         if done:
             break
         assert obs is not None
-        final_reward = obs["money"]
+        moneys.append(obs["money"])
 
         # check task status
         subtasks = [None] * num_robots
@@ -49,8 +52,14 @@ if __name__ == "__main__":
                 continue
             task.update(obs)
             subtask = task_manager.makeSubtask(task, obs)
-            if not task_manager.isTaskDone(task, subtask):
-                subtasks[i] = subtask
+            if task_manager.isTaskDone(task, subtask):
+                task_log.append({
+                    "cycle": obs["frame_id"],
+                    "duration": obs["frame_id"] - start_time[i],
+                    "task_info": task
+                })
+                continue
+            subtasks[i] = subtask
 
         # make decision
         robot_indices = [
@@ -67,6 +76,7 @@ if __name__ == "__main__":
                 selected_task = scheduler.select(i, robot_tasks, obs)
                 subtask = task_manager.makeSubtask(selected_task, obs)
                 subtasks[i] = subtask
+                start_time[i] = obs["frame_id"]
 
         # control
         actions = []
@@ -76,5 +86,31 @@ if __name__ == "__main__":
 
         env.send(actions)
 
-    print(f"[INFO]: Reward {final_reward}")
     env.close()
+    print(f"[INFO]: Score {moneys[-1]}")
+
+    if args.show_statistics:
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        # time - money
+        fig, ax = plt.subplots()
+        ax.plot(moneys, label="money")
+        ax.set_xlabel("time")
+        ax.set_ylabel("money")
+        fig.savefig("money.png")
+
+        # task info
+        task_durations = np.array(
+            [task_info["duration"] for task_info in task_log])
+        fig, ax = plt.subplots()
+        ax.hist(task_durations, bins=100)
+        ax.set_xlabel("duration")
+        ax.set_ylabel("count")
+        fig.savefig("task_durations.png")
+
+        print("[INFO]: Task duration {} +- {}".format(
+            np.mean(task_durations), np.std(task_durations)))
+
+        import pickle
+        pickle.dump(task_log, open("task_log.pkl", "wb"))
