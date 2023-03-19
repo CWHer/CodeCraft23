@@ -21,10 +21,11 @@ class Task:
     #     'time_coef': 0.0,
     #     'momentum_coef': 0.0,
     #     'angular_speed': 0.0,
-    #     'line_speed': 0.0,
+    #     'line_speed_x': 0.0,
+    #     'line_speed_y': 0.0,
     #     'theta': 0.0,
-    #     'loc_x': 0.0,
-    #     'loc_y': 24.75
+    #     'loc_x': 24.75,
+    #     'loc_y': 38.75
     # }
     robot_stat: Dict[str, Any] = dataclasses.field(default_factory=dict)
     # station_stat = {
