@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from task_utils import Task, TaskType
 
@@ -44,7 +44,7 @@ class TaskChecker:
             },
         }
 
-    def isTaskValid(self, task: Task, obs: Dict[str, Any]) -> bool:
+    def isTaskValid(self, task: Task, obs: Dict[str, Any]) -> None:
         # FIXME: this may be useless, genTasks is enough
         if task.task_type == TaskType.BUY:
             assert task.robot_stat["item_type"] == 0
@@ -157,6 +157,8 @@ if __name__ == "__main__":
     obs = env.reset()
     obs, done = env.recv()
     tasks = task_checker.genTasks(obs)
-    for task in tasks:
-        task_checker.isTaskValid(task, obs)
+    for robot_tasks in tasks:
+        for task in robot_tasks:
+            task_checker.isTaskValid(task, obs)
     env.close()
+    print("[INFO]: Done!")
