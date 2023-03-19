@@ -60,7 +60,7 @@ class TestAction(unittest.TestCase):
                 print(f"[INFO]: frame_id {obs['frame_id']}")
                 break
 
-            actions = action_generator.get_action(subtask)
+            actions = action_generator.getAction(subtask)
             self.env.send(actions)
         self.assertTrue(subtask_done)
 
@@ -90,7 +90,7 @@ class TestAction(unittest.TestCase):
             if task_manager.isSubtaskDone(subtask):
                 print(f"[INFO]: {subtask.subtask_type} Done")
 
-            actions = action_generator.get_action(subtask)
+            actions = action_generator.getAction(subtask)
             self.env.send(actions)
         self.assertTrue(task_done)
 
