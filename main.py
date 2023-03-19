@@ -109,7 +109,7 @@ if __name__ == "__main__":
         ax.set_ylabel("count")
         fig.savefig("task_durations.png")
 
-        print("[INFO]: Task duration {} +- {}".format(
+        print("[INFO]: Task duration {:.2f} +- {:.2f}".format(
             np.mean(task_durations), np.std(task_durations)))
 
         import pickle
