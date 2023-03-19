@@ -59,10 +59,12 @@ class TaskChecker:
             assert task.robot_stat["item_type"] != 0 \
                 and task.robot_stat["item_type"] == task.item_type
 
-    def genTasks(self, obs: Dict[str, Any]) -> List[Task]:
+    def genTasks(self, obs: Dict[str, Any]) -> List[List[Task]]:
         num_robots = len(obs["robots"])
         num_stations = len(obs["stations"])
-        buy_tasks, sell_tasks, destroy_tasks = [], [], []
+        buy_tasks, sell_tasks, destroy_tasks = [[] for _ in range(num_robots)], \
+            [[] for _ in range(num_robots)], [[] for _ in range(num_robots)]
+
         for i in range(num_robots):
             # destory
             if obs["robots"][i]["item_type"] != 0:
@@ -73,12 +75,11 @@ class TaskChecker:
                     station_id=None
                 )
                 task.update(obs)
-                destroy_tasks.append(task)
+                destroy_tasks[i].append(task)
 
             for j in range(num_stations):
                 # buy
                 station_type = obs["stations"][j]["station_type"]
-                print(station_type)
                 if obs["robots"][i]["item_type"] == 0:
                     for k in self.station_specs[station_type]["output"]:
                         task = Task(
@@ -88,7 +89,7 @@ class TaskChecker:
                             station_id=j
                         )
                         task.update(obs)
-                        buy_tasks.append(task)
+                        buy_tasks[i].append(task)
                 # sell
                 if obs["robots"][i]["item_type"] \
                         in self.station_specs[station_type]["input"]:
@@ -99,11 +100,19 @@ class TaskChecker:
                         station_id=j
                     )
                     task.update(obs)
-                    buy_tasks.append(task)
+                    sell_tasks[i].append(task)
 
-        return buy_tasks + sell_tasks + destroy_tasks
+        tasks_by_robot = []
+        for i in range(num_robots):
+            tasks_by_robot.append(
+                buy_tasks[i] + sell_tasks[i] + destroy_tasks[i])
+        return tasks_by_robot
 
-    def checkConflict(self, tasks: List[Task]) -> bool:
+    def checkConflict(self,
+                      tasks: List[Task],
+                      assigned_tasks: List[Optional[Task]],
+                      obs: Dict[str, Any]
+                      ) -> List[Task]:
         # TODO: e.g., this could be important
         # 1. both robot 0 & 1 goto station 0
         # 2. not enough money
@@ -111,7 +120,12 @@ class TaskChecker:
         # 4. multiple sell
         # 5. want to buy thing that won't be created
         # ...
-        return False
+        return tasks
+
+
+    def filterInvalidTasks(self, tasks: List[List[Task]], obs: Dict[str, Any]) -> List[List[Task]]:
+        # TODO: coarse filter of all tasks
+        return tasks
 
 
 if __name__ == "__main__":
