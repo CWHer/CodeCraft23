@@ -41,7 +41,8 @@ class TaskManager:
             raise NotImplementedError()
 
     def isTaskDone(self, task: Task, subtask: Subtask) -> bool:
-        return task.task_type == subtask.subtask_type \
+        # HACK: compare Enum using value
+        return task.task_type.value == subtask.subtask_type.value \
             and self.isSubtaskDone(subtask)
 
     def isSubtaskDone(self, subtask: Subtask) -> bool:
