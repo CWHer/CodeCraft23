@@ -168,3 +168,9 @@ log/
 # Robot Env
 RobotEnv/
 replay/
+
+# Auxiliary files
+*.png
+*.jpg
+*.log
+*.pkl
