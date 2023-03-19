@@ -1,10 +1,12 @@
+import random
 from typing import Any, Dict, List, Optional
 
 from task_utils import Task
 
 
-class DummyScheduler:
+class RandomScheduler:
     def __init__(self) -> None:
+        random.seed(1927)
         self.num_robots = 4
         self.assigned_tasks: List[Optional[Task]] = [None] * self.num_robots
 
@@ -13,7 +15,7 @@ class DummyScheduler:
                tasks: List[Task],
                obs: Dict[str, Any]
                ) -> Task:
-        selected_task = tasks[0]
+        selected_task = random.choice(tasks)
         self.assigned_tasks[robot_id] = selected_task
         return selected_task
 
