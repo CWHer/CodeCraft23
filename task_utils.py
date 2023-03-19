@@ -12,8 +12,9 @@ class TaskType(enum.Enum):
 @dataclasses.dataclass
 class Task:
     task_type: TaskType
-    item_type: int
+    item_type: Optional[int]
     robot_id: int
+    station_id: Optional[int]
     # robot_stat = {
     #     'station_id': -1,
     #     'item_type': 0,
@@ -25,8 +26,7 @@ class Task:
     #     'loc_x': 0.0,
     #     'loc_y': 24.75
     # }
-    robot_stat: Dict[str, Any]
-    station_id: Optional[int]
+    robot_stat: Dict[str, Any] = dataclasses.field(default_factory=dict)
     # station_stat = {
     #     'station_type': 1,
     #     'loc_x': 1.25,
@@ -35,7 +35,12 @@ class Task:
     #     'input_status': 0,
     #     'output_status': 0
     # }
-    station_stat: Optional[Dict[str, Any]]
+    station_stat: Optional[Dict[str, Any]] = None
+
+    def update(self, obs: Dict[str, Any]):
+        self.robot_stat = obs["robots"][self.robot_id]
+        if self.station_id is not None:
+            self.station_stat = obs["stations"][self.station_id]
 
 
 class SubtaskType(enum.Enum):
@@ -50,6 +55,11 @@ class Subtask:
     subtask_type: SubtaskType
     item_type: Optional[int]
     robot_id: int
-    robot_stat: Dict[str, Any]
     station_id: Optional[int]
-    station_stat: Optional[Dict[str, Any]]
+    robot_stat: Dict[str, Any] = dataclasses.field(default_factory=dict)
+    station_stat: Optional[Dict[str, Any]] = None
+
+    def update(self, obs: Dict[str, Any]):
+        self.robot_stat = obs["robots"][self.robot_id]
+        if self.station_id is not None:
+            self.station_stat = obs["stations"][self.station_id]
