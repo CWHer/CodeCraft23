@@ -48,6 +48,9 @@ class RolloutWorker:
 
         self.obs_padding = 2 + 6 * self.num_station + 10 * self.num_robots
         self.task_padding = 4 + 10 + 6
+    
+    def close(self):
+        self.env.close()
 
     def rollout(self, scheduler: BaseScheduler) \
             -> Tuple[List[Transition], List[int], List[Any]]:
@@ -57,6 +60,7 @@ class RolloutWorker:
             money: List of money at each frame
             task_log: List of task dict
         """
+        scheduler.clear([i for i in range(self.num_robots)])
 
         # statistics
         moneys, task_log = [], []
@@ -124,31 +128,26 @@ class RolloutWorker:
         # HACK: FIXME: we assume at most one task is done at each frame
         end_time = [log["end_time"] for log in task_log]
         if not task_log or len(end_time) != len(set(end_time)):
-            raise RuntimeError("Multiple tasks are done at the same frame")
+            return None
 
         episode = []
         task_log.sort(key=lambda x: x["end_time"])
-        for i in range(len(task_log) - 1):
+        for log in task_log:
             episode.append(Transition(
-                obs=obsToNumpy(task_log[i]["obs"], self.obs_padding),
-                action=taskToNumpy(task_log[i]["action"], self.task_padding),
+                obs=obsToNumpy(log["obs"], self.obs_padding),
+                action=taskToNumpy(log["action"], self.task_padding),
                 candidate_actions=np.array([
                     taskToNumpy(task, self.task_padding)
-                    for task in task_log[i]["candidata_actions"]
+                    for task in log["candidata_actions"]
                 ]),
-                reward=task_log[i]["reward"] * self.reward_scale,
-                next_obs=obsToNumpy(task_log[i + 1]["obs"], self.obs_padding),
+                reward=log["reward"] * self.reward_scale,
                 done=False,
             ))
         episode.append(Transition(
-            obs=obsToNumpy(task_log[-1]["obs"], self.obs_padding),
-            action=taskToNumpy(task_log[-1]["action"], self.task_padding),
-            candidate_actions=np.array([
-                taskToNumpy(task, self.task_padding)
-                for task in task_log[-1]["candidata_actions"]
-            ]),
-            reward=task_log[-1]["reward"] * self.reward_scale,
-            next_obs=obsToNumpy(None, self.obs_padding),
+            obs=obsToNumpy(None, self.obs_padding),
+            action=taskToNumpy(None, self.task_padding),
+            candidate_actions=np.array([taskToNumpy(None, self.task_padding)]),
+            reward=0,
             done=True,
         ))
 

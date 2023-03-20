@@ -13,13 +13,20 @@ class ReplayBuffer:
         self.buffer.extend(episode)
 
     def sample(self, batch_size) -> Dict[str, List]:
-        indices = np.random.choice(len(self.buffer), batch_size, replace=True)
+        # fmt: off
+        all_indices = [
+            i for i in range(len(self.buffer))
+            if not self.buffer[i].done
+        ]
+        indices = np.random.choice(all_indices, batch_size, replace=True)
         obs = [self.buffer[i].obs for i in indices]
         action = [self.buffer[i].action for i in indices]
         candidate_actions = [self.buffer[i].candidate_actions for i in indices]
         reward = [self.buffer[i].reward for i in indices]
         done = [self.buffer[i].done for i in indices]
-        next_obs = [self.buffer[i].next_obs for i in indices]
+        obs_next = [self.buffer[i + 1].obs for i in indices]
+        candidate_actions_next = [self.buffer[i + 1].candidate_actions for i in indices]
+        # fmt: on
 
         return {
             "obs": obs,
@@ -27,5 +34,6 @@ class ReplayBuffer:
             "candidate_actions": candidate_actions,
             "reward": reward,
             "done": done,
-            "next_obs": next_obs,
+            "obs_next": obs_next,
+            "candidate_actions_next": candidate_actions_next,
         }

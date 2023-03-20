@@ -8,7 +8,6 @@ Transition = namedtuple(
         "action",
         "candidate_actions",
         "reward",
-        "next_obs",
         "done",
     ],
 )
