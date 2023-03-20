@@ -1,14 +1,14 @@
 import os
 import random
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 from Env.env_utils import obsToNumpy, taskToNumpy
 from Env.RobotEnv.env_wrapper import EnvWrapper
 from Env.subtask_to_action import SubtaskToAction
 from Env.task_checker import TaskChecker
 from Env.task_to_subtask import TaskManager
-from Env.task_utils import Task
 from scheduler import BaseScheduler
+from utils import Transition
 
 
 class RolloutWorker:
@@ -51,10 +51,10 @@ class RolloutWorker:
         self.task_padding = 4 + 10 + 6
 
     def rollout(self, scheduler: BaseScheduler) \
-            -> Tuple[List[Tuple[Dict, Task, float, bool]], List[int], List[Any]]:
+            -> Tuple[List[Transition], List[int], List[Any]]:
         """
         Return:
-            episode: List of (obs, action, reward, done)
+            episode: List of transition
             money: List of money at each frame
             task_log: List of task dict
         """
@@ -130,16 +130,17 @@ class RolloutWorker:
 
         episode = []
         task_log.sort(key=lambda x: x["end_time"])
-        for log in task_log:
-            episode.append((
-                obsToNumpy(log["obs"], self.obs_padding),
-                taskToNumpy(log["action"], self.task_padding),
-                log["reward"] * self.reward_scale, False
+        for i in range(len(task_log) - 1):
+            episode.append(Transition(
+                obsToNumpy(task_log[i]["obs"], self.obs_padding),
+                taskToNumpy(task_log[i]["action"], self.task_padding),
+                task_log[i]["reward"] * self.reward_scale, False,
+                obsToNumpy(task_log[i + 1]["obs"], self.obs_padding),
             ))
-        episode.append((
-            obsToNumpy(None, self.obs_padding),
-            taskToNumpy(None, self.task_padding),
-            0, True
+        episode.append(Transition(
+            obsToNumpy(task_log[-1]["obs"], self.obs_padding),
+            taskToNumpy(task_log[-1]["action"], self.task_padding),
+            0, True, obsToNumpy(None, self.obs_padding),
         ))
 
         return episode, moneys, task_log
@@ -150,6 +151,11 @@ if __name__ == "__main__":
     random_scheduler = BaseScheduler()
     rollout_worker = RolloutWorker()
     start_time = time.time()
-    rollout_worker.rollout(random_scheduler)
+    episode, *_ = rollout_worker.rollout(random_scheduler)
     duration = time.time() - start_time
     print("[INFO]: time elapsed {:.2f}s".format(duration))
+
+    from replay_buffer import ReplayBuffer
+    buffer = ReplayBuffer(1000)
+    buffer.add(episode)
+    batch = buffer.sample(4)
