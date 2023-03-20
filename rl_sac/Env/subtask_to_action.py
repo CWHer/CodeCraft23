@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from task_utils import Subtask, SubtaskType
+from .task_utils import Subtask, SubtaskType
 
 
 class SubtaskToAction:

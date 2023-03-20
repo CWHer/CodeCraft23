@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from task_utils import Task, TaskType
+from .task_utils import Task, TaskType
 
 
 class TaskChecker:

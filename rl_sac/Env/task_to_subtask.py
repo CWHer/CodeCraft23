@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from task_utils import Subtask, SubtaskType, Task, TaskType
+from .task_utils import Subtask, SubtaskType, Task, TaskType
 
 
 class TaskManager:
