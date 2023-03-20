@@ -2,6 +2,7 @@ import os
 import random
 from typing import Any, List, Tuple
 
+import numpy as np
 from Env.env_utils import obsToNumpy, taskToNumpy
 from Env.RobotEnv.env_wrapper import EnvWrapper
 from Env.subtask_to_action import SubtaskToAction
@@ -43,8 +44,6 @@ class RolloutWorker:
             env_map = ''.join(f.readlines())
             self.num_station = 0
             for c in env_map:
-                if c.isdigit():
-                    print(self.num_station, c)
                 self.num_station += c.isdigit()
 
         self.obs_padding = 2 + 6 * self.num_station + 10 * self.num_robots
@@ -61,8 +60,8 @@ class RolloutWorker:
 
         # statistics
         moneys, task_log = [], []
-        start_time = [0 for _ in range(self.num_robots)]
-        start_obs = [None for _ in range(self.num_robots)]
+        last_obs = [None for _ in range(self.num_robots)]
+        all_tasks = [[] for _ in range(self.num_robots)]
 
         env_map = self.env.reset()
         while True:
@@ -81,13 +80,14 @@ class RolloutWorker:
                 subtask = self.task_manager.makeSubtask(task, obs)
                 if self.task_manager.isTaskDone(task, subtask):
                     task_log.append({
-                        "start_time": start_time[i],
+                        "start_time": last_obs[i]["frame_id"],
                         "end_time": obs["frame_id"],
-                        "duration": obs["frame_id"] - start_time[i],
+                        "duration": obs["frame_id"] - last_obs[i]["frame_id"],
                         "action": task,
+                        "candidata_actions": all_tasks[i],
                         # HACK: only last frame changes money
                         "reward": moneys[-1] - moneys[-2],
-                        "obs": start_obs[i],
+                        "obs": last_obs[i],
                     })
                     continue
                 subtasks[i] = subtask
@@ -108,8 +108,7 @@ class RolloutWorker:
                     selected_task = scheduler.select(i, robot_tasks, obs)
                     subtask = self.task_manager.makeSubtask(selected_task, obs)
                     subtasks[i] = subtask
-                    start_time[i] = obs["frame_id"]
-                    start_obs[i] = obs
+                    last_obs[i], all_tasks[i] = obs, robot_tasks
 
             # control
             actions = []
@@ -119,7 +118,6 @@ class RolloutWorker:
 
             self.env.send(actions)
 
-        self.env.close()
         print("[INFO]: Rollout finished")
         print("[INFO]: generating episode...")
 
@@ -132,15 +130,26 @@ class RolloutWorker:
         task_log.sort(key=lambda x: x["end_time"])
         for i in range(len(task_log) - 1):
             episode.append(Transition(
-                obsToNumpy(task_log[i]["obs"], self.obs_padding),
-                taskToNumpy(task_log[i]["action"], self.task_padding),
-                task_log[i]["reward"] * self.reward_scale, False,
-                obsToNumpy(task_log[i + 1]["obs"], self.obs_padding),
+                obs=obsToNumpy(task_log[i]["obs"], self.obs_padding),
+                action=taskToNumpy(task_log[i]["action"], self.task_padding),
+                candidate_actions=np.array([
+                    taskToNumpy(task, self.task_padding)
+                    for task in task_log[i]["candidata_actions"]
+                ]),
+                reward=task_log[i]["reward"] * self.reward_scale,
+                next_obs=obsToNumpy(task_log[i + 1]["obs"], self.obs_padding),
+                done=False,
             ))
         episode.append(Transition(
-            obsToNumpy(task_log[-1]["obs"], self.obs_padding),
-            taskToNumpy(task_log[-1]["action"], self.task_padding),
-            0, True, obsToNumpy(None, self.obs_padding),
+            obs=obsToNumpy(task_log[-1]["obs"], self.obs_padding),
+            action=taskToNumpy(task_log[-1]["action"], self.task_padding),
+            candidate_actions=np.array([
+                taskToNumpy(task, self.task_padding)
+                for task in task_log[-1]["candidata_actions"]
+            ]),
+            reward=task_log[-1]["reward"] * self.reward_scale,
+            next_obs=obsToNumpy(None, self.obs_padding),
+            done=True,
         ))
 
         return episode, moneys, task_log
