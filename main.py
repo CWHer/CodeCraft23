@@ -3,7 +3,7 @@ import os
 import random
 
 from RobotEnv.env_wrapper import EnvWrapper
-from scheduler import RandomScheduler
+from scheduler import BaseScheduler, GreedyScheduler
 from subtask_to_action import SubtaskToAction
 from task_checker import TaskChecker
 from task_to_subtask import TaskManager
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     parser.add_argument("--env-args", default="-d")
     parser.add_argument("--env-wrapper-name", default="./env_wrapper")
     parser.add_argument("--pipe-name", default=f"/tmp/pipe_{random.random()}")
-    parser.add_argument("--show-statistics", default=True)
+    parser.add_argument("--no-statistics", default=False, action="store_true")
     args = parser.parse_args()
     robot_env_path = os.path.join(os.path.dirname(__file__), "RobotEnv")
     args.map_id = os.path.join(robot_env_path, args.map_id)
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     action_generator = SubtaskToAction()
     task_manager = TaskManager()
     task_checker = TaskChecker()
-    scheduler = RandomScheduler()
+    scheduler = GreedyScheduler()
 
     moneys, task_log = [], []
     start_time = [0 for _ in range(num_robots)]
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         # control
         actions = []
         for subtask in subtasks:
-            action = action_generator.getAction(subtask)
+            action = action_generator.getAction(subtask, obs)
             actions += action
 
         env.send(actions)
@@ -89,7 +89,15 @@ if __name__ == "__main__":
     env.close()
     print(f"[INFO]: Score {moneys[-1]}")
 
-    if args.show_statistics:
+    # show unfinished:
+    for i, task in enumerate(scheduler.stat()):
+        if task is not None:
+            print(
+                f"[INFO]: Unfinished - Robot {i}, task_type {task.task_type}, "
+                f"station {task.station_id}, item {task.item_type}"
+            )
+
+    if not args.no_statistics:
         import matplotlib.pyplot as plt
         import numpy as np
 
