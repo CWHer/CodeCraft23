@@ -1,3 +1,4 @@
+import math
 from typing import Any, Dict, List, Optional
 
 from task_utils import Task, TaskType
@@ -43,6 +44,8 @@ class TaskChecker:
                 "output": []
             },
         }
+
+        self.costs = [3000, 4400, 5800, 15400, 17200, 19200, 76000]
 
     def isTaskValid(self, task: Task, obs: Dict[str, Any]) -> None:
         # FIXME: this may be useless, genTasks is enough
@@ -114,18 +117,208 @@ class TaskChecker:
                       obs: Dict[str, Any]
                       ) -> List[Task]:
         # TODO: e.g., this could be important
+        valid_index = [1 for _ in range(len(tasks))]
+
+        # parameters that can be tuned
+        predict_scale = 1.3
+        conflict_time_threshold = 1
+        conflict_robot_threshold = 1
+
+        # predict time for assigned tasks
+        assigned_predicted_time = [100000 for _ in range(4)]
+        for idx, a_task in enumerate(assigned_tasks):
+            if not a_task or a_task.task_type == TaskType.DESTROY:
+                continue
+            robot_x, robot_y = obs["robots"][a_task.robot_id]["loc_x"], obs["robots"][a_task.robot_id]["loc_y"]
+            assigned_predicted_time[idx] = math.sqrt((robot_x - a_task.station_stat["loc_x"]) ** 2 + (
+                robot_y - a_task.station_stat["loc_y"]) ** 2) / 6 * predict_scale
+
+        # # calculate linear equation track for each assigned task
+        # line_equations = [None for _ in range(4)]
+        # for idx, a_task in enumerate(assigned_tasks):
+        #     if not a_task or a_task.task_type == TaskType.DESTROY:
+        #         continue
+        #     else:
+        #         # get points
+        #         point1 = (obs["robots"][a_task.robot_id]["loc_x"], obs["robots"][a_task.robot_id]["loc_y"])
+        #         point2 = (a_task.station_stat["loc_x"], a_task.station_stat["loc_y"])
+        #         # calc Ax + By + C = 0
+        #         A = point1[1] - point2[1]
+        #         B = point2[0] - point1[0]
+        #         C = point1[0] * point2[1] - point2[0] * point1[1]
+        #         if abs(A) < episilon:
+        #             A = 0
+        #         if abs(B) < episilon:
+        #             B = 0
+        #         line_equations[idx] = (A, B, C)
+
+        # check for each task
+        for idx, task in enumerate(tasks):
+            station_type = None if task.station_id is None \
+                else task.station_stat["station_type"]
+
+            if task.task_type == TaskType.BUY or task.task_type == TaskType.SELL:
+                # # avoid collision : currently do not care about direction
+                # calc Ax + By + C = 0
+                # point1 = (obs["robots"][task.robot_id]["loc_x"], obs["robots"][task.robot_id]["loc_y"])
+                # point2 = (task.station_stat["loc_x"], task.station_stat["loc_y"])
+                # A = point1[1] - point2[1]
+                # B = point2[0] - point1[0]
+                # C = point1[0] * point2[1] - point2[0] * point1[1]
+                # if abs(A) < episilon:
+                #     A = 0
+                # if abs(B) < episilon:
+                #     B = 0
+                # # check conflict
+                # for assigned_idx, assigned_task in enumerate(assigned_tasks):
+                #     if not assigned_task or a_task.task_type == TaskType.DESTROY:
+                #         continue
+                #     elif assigned_task.task_type == TaskType.BUY or assigned_task.task_type == TaskType.SELL:
+                #         # check if the angel between two lines is less than episilon
+                #         # calc the angel between two lines
+                #         angle = math.acos((A * line_equations[assigned_idx][0] + B * line_equations[assigned_idx][1]) /
+                #                           (math.sqrt(A ** 2 + B ** 2) * math.sqrt(line_equations[assigned_idx][0] ** 2 + line_equations[assigned_idx][1] ** 2)))
+
+                # too many robots go to the same station: may cause bumping into each other
+                robot_x, robot_y = obs["robots"][task.robot_id]["loc_x"], obs["robots"][task.robot_id]["loc_y"]
+                self_predicted_time = math.sqrt((robot_x - task.station_stat["loc_x"]) ** 2 + (
+                    robot_y - task.station_stat["loc_y"]) ** 2) / 6 * predict_scale
+                # count conflict robots
+                conflict_robot_num = 0
+                for assigned_idx, assigned_task in enumerate(assigned_tasks):
+                    if not assigned_task or assigned_task.task_type == TaskType.DESTROY:
+                        continue
+                    elif assigned_task.task_type == TaskType.BUY or assigned_task.task_type == TaskType.SELL:
+                        if task.station_id == assigned_task.station_id and abs(self_predicted_time - assigned_predicted_time[assigned_idx]) < conflict_time_threshold:
+                            conflict_robot_num += 1
+                if conflict_robot_num >= conflict_robot_threshold:
+                    valid_index[idx] = 0
+                    continue
+
+            # selling same product
+            if task.task_type == TaskType.SELL and 4 <= station_type <= 7:
+                for assigned_task in assigned_tasks:
+                    if not assigned_task or assigned_task.task_type == TaskType.DESTROY:
+                        continue
+                    elif assigned_task.task_type == TaskType.SELL and task.station_id == assigned_task.station_id and task.item_type == assigned_task.item_type:
+                        valid_index[idx] = 0
+
+            # buying same processed product
+            if task.task_type == TaskType.BUY and 4 <= station_type <= 7:
+                for assigned_task in assigned_tasks:
+                    if not assigned_task or assigned_task.task_type == TaskType.DESTROY:
+                        continue
+                    elif assigned_task.task_type == TaskType.BUY and task.station_id == assigned_task.station_id and task.item_type == assigned_task.item_type \
+                            and task.station_stat["output_status"] != 0:
+                        valid_index[idx] = 0
+        # delete
+        new_tasks = [task for idx, task in enumerate(
+            tasks) if valid_index[idx] == 1]
+        return new_tasks
         # 1. both robot 0 & 1 goto station 0
         # 2. not enough money
         # 3. too long waiting time
         # 4. multiple sell
         # 5. want to buy thing that won't be created
+        # 6. some items cannot be sold if there are not receiving stations
         # ...
-        return tasks
-
 
     def filterInvalidTasks(self, tasks: List[List[Task]], obs: Dict[str, Any]) -> List[List[Task]]:
         # TODO: coarse filter of all tasks
-        return tasks
+        # params that can be adjusted
+        predict_scale = 1.3
+
+        # stats
+        new_tasks = [[] for _ in range(4)]
+
+        # get invalid items to buy: stop buying items which has been fully placed
+        # valid_items = set()
+        # for station in obs['stations']:
+        #     # buy
+        #     station_type = station["station_type"]
+        #     if 4 <= station_type <= 7:
+        #         for item in self.station_specs[station_type]["output"]:
+        #             if item not in valid_items:
+        #                 valid_items.add(item)
+        #     if obs["robots"][i]["item_type"] == 0:
+
+        # check for individual robot
+        for i in range(4):
+            valid_index = [1 for _ in range(len(tasks[i]))]
+            for idx, task in enumerate(tasks[i]):
+                station_type = None if task.station_id is None \
+                    else task.station_stat["station_type"]
+
+                # buy product
+                if task.task_type == TaskType.BUY:
+                    # from processing stations
+                    # not producing now
+                    if 4 <= station_type <= 7 and \
+                            obs['stations'][task.station_id]['remain_time'] == -1:
+                        valid_index[idx] = 0
+
+                    # not ready within predicted arriving time
+                    elif 4 <= station_type <= 7 and \
+                            obs['stations'][task.station_id]['output_status'] == 0:
+                        # clac time
+                        station_pos_x, station_pos_y = \
+                            obs['stations'][task.station_id]['loc_x'], \
+                            obs['stations'][task.station_id]['loc_y']
+                        robot_pos_x, robot_pos_y = \
+                            obs['robots'][i]['loc_x'], obs['robots'][i]['loc_y']
+                        predicted_time = math.sqrt(
+                            (robot_pos_x - station_pos_x) ** 2 +
+                            (robot_pos_y - station_pos_y) ** 2
+                        ) / 6 * predict_scale
+                        # check
+                        if predicted_time < obs['stations'][task.station_id]['remain_time']:
+                            valid_index[idx] = 0
+
+                # sell product
+                elif task.task_type == TaskType.SELL:
+                    # full station; not producing or not ready within arrival time
+                    # fixme: may not be the right way to interpret; other robots may clear the station
+                    if 4 <= station_type <= 7:
+                        # get input stat
+                        input_status = obs['stations'][task.station_id]['input_status']
+                        placed_item_list = [0 for _ in range(6)]
+                        for item_idx in range(6):
+                            input_status //= 2
+                            placed_item_list[item_idx] = input_status % 2
+
+                        # print('Deciding:', f'robot {i} station {task.station_id} item {task.item_type} station_type {station_type}',
+                        #     f'remain_time {obs["stations"][task.station_id]["remain_time"]}, item_list', placed_item_list)
+
+                        # already_have + not producing / conjesture
+                        if placed_item_list[task.item_type-1] == 1 \
+                                and obs['stations'][task.station_id]['remain_time'] <= 0:
+                            valid_index[idx] = 0
+
+                        # do not have + producing / conjesture + lack one item
+                        # elif placed_item_list[task.item_type-1] == 0 and obs['stations'][task.station_id]['remain_time'] >= 0 and \
+                        #         sum(placed_item_list) == len(self.station_specs[station_type]["input"])-1 and obs['stations'][task.station_id]['output_status'] == 1:
+                        #     valid_index[idx] = 0
+
+                        # already_have + not ready within arrival time
+                        elif placed_item_list[task.item_type-1] == 1:
+                            # calc time
+                            station_pos_x, station_pos_y = \
+                                obs['stations'][task.station_id]['loc_x'], \
+                                obs['stations'][task.station_id]['loc_y']
+                            robot_pos_x, robot_pos_y = \
+                                obs['robots'][i]['loc_x'], obs['robots'][i]['loc_y']
+                            predicted_time = math.sqrt(
+                                (robot_pos_x - station_pos_x) ** 2 +
+                                (robot_pos_y - station_pos_y) ** 2
+                            ) / 6 * predict_scale
+                            # check
+                            if predicted_time < obs['stations'][task.station_id]['remain_time']:
+                                valid_index[idx] = 0
+
+            # delete
+            new_tasks[i] = [task for idx, task in enumerate(
+                tasks[i]) if valid_index[idx] == 1]
+        return new_tasks
 
 
 if __name__ == "__main__":
