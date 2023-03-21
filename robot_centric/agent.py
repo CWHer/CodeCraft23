@@ -33,8 +33,7 @@ class RobotBasedAgent:
             if task is None:
                 continue
             task.update(obs)
-            subtask = self.task_helper.makeSubtask(task, obs)
-            if self.task_helper.isTaskDone(task, subtask):
+            if self.task_helper.isTaskDone(task):
                 self.task_log.append({
                     "start_time": self.last_obs[i]["frame_id"],
                     "end_time": obs["frame_id"],
@@ -43,6 +42,7 @@ class RobotBasedAgent:
                     "obs_info": self.last_obs[i],
                 })
                 continue
+            subtask = self.task_helper.makeSubtask(task, obs)
             subtasks[i] = subtask
 
         # make decision
