@@ -1,12 +1,51 @@
 import dataclasses
 import enum
+from collections import namedtuple
 from typing import Any, Dict, Optional
+
+TimeRange = namedtuple("TimeRange", ["min", "max"])
+
+
+def decayFunc(x, max_x, min_ratio) -> float:
+    if x >= max_x:
+        return min_ratio
+    return (1 - (1 - (1 - x / max_x) ** 2) ** 0.5) * (1 - min_ratio) + min_ratio
+
+
+@dataclasses.dataclass
+class MetaTask:
+    # NOTE: actually only one task type is needed, that is BUY and SELL,
+    #   and BUY and DESTROY is useless
+    item_type: int
+    src_station_id: int
+    dst_station_id: int
+
+    # FIXME: maybe a distribution is more accurate
+    src_ready_time: TimeRange
+    dst_ready_time: TimeRange
+    dst_src_time: float  # robot goto dst from src
+    # robot_src_time: float = float("inf")  # robot goto src
+
+    # NOTE:
+    # estimated_total_time = max(
+    #     max(robot_src_time, src_ready_time) + dst_src_time,
+    #     dst_ready_time
+    # )
+    reach_src: bool = False
+    reach_dst: bool = False
+    owned_item: bool = False
+
+    robot_id: int = -1
+    robot_stat: Dict[str, Any] = dataclasses.field(default_factory=dict)
+
+    def update(self, obs: Dict[str, Any]):
+        self.robot_stat = obs["robots"][self.robot_id]
 
 
 class TaskType(enum.Enum):
     BUY = 1
     SELL = 2
-    DESTROY = 3
+    DESTROY = 3  # HACK: this action is not rational
 
 
 @dataclasses.dataclass
@@ -37,6 +76,7 @@ class Task:
     #     'output_status': 0
     # }
     station_stat: Optional[Dict[str, Any]] = None
+    reach_dst: bool = False
 
     def update(self, obs: Dict[str, Any]):
         self.robot_stat = obs["robots"][self.robot_id]
@@ -45,6 +85,7 @@ class Task:
 
 
 class SubtaskType(enum.Enum):
+    # NOTE: subtask is atomic
     GOTO = 0
     BUY = 1
     SELL = 2
