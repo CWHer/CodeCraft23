@@ -74,12 +74,16 @@ class RobotBasedAgent:
 
     def showStatistics(self) -> Dict:
         print(f"[INFO]: Score {self.moneys[-1]}")
-        # show unfinished:
+
+        task_durations = [
+            task_info["duration"]
+            for task_info in self.task_log
+        ]
         for i, task in enumerate(self.scheduler.stat()):
             if task is not None:
                 print(
-                    f"[INFO]: Unfinished - Robot {i}, task_type {task.task_type}, "
-                    f"station {task.station_id}, item {task.item_type}"
+                    f"[INFO]: Unfinished - Robot {i}, start time {self.last_obs[i]['frame_id']}, "
+                    f"task_type {task.task_type}, station {task.station_id}, item {task.item_type}"
                 )
 
         import matplotlib.pyplot as plt
@@ -93,8 +97,6 @@ class RobotBasedAgent:
         fig.savefig("money.png")
 
         # task info
-        task_durations = np.array(
-            [task_info["duration"] for task_info in self.task_log])
         fig, ax = plt.subplots()
         ax.hist(task_durations, bins=100)
         ax.set_xlabel("duration")
