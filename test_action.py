@@ -5,7 +5,7 @@ import unittest
 
 from RobotEnv.env_wrapper import EnvWrapper
 from subtask_to_action import SubtaskToAction
-from task_to_subtask import TaskManager
+from task_to_subtask import TaskHelper
 from task_utils import Subtask, SubtaskType, Task, TaskType
 
 
@@ -38,8 +38,8 @@ class TestAction(unittest.TestCase):
         self.env.close()
 
     def testSubtask(self):
-        action_generator = SubtaskToAction()
-        task_manager = TaskManager()
+        subtask_to_action = SubtaskToAction()
+        task_helper = TaskHelper()
 
         obs = self.env.reset()
         subtask_done = False
@@ -55,18 +55,18 @@ class TestAction(unittest.TestCase):
                 station_id=0,
             )
             subtask.update(obs)
-            if task_manager.isSubtaskDone(subtask):
+            if task_helper.isSubtaskDone(subtask):
                 subtask_done = True
                 print(f"[INFO]: frame_id {obs['frame_id']}")
                 break
 
-            actions = action_generator.getAction(subtask)
+            actions = subtask_to_action.getAction(subtask, obs)
             self.env.send(actions)
         self.assertTrue(subtask_done)
 
     def testTask(self):
-        action_generator = SubtaskToAction()
-        task_manager = TaskManager()
+        subtask_to_action = SubtaskToAction()
+        task_helper = TaskHelper()
 
         obs = self.env.reset()
         task_done = False
@@ -82,15 +82,15 @@ class TestAction(unittest.TestCase):
                 station_id=0,
             )
             task.update(obs)
-            subtask = task_manager.makeSubtask(task, obs)
-            if task_manager.isTaskDone(task, subtask):
+            subtask = task_helper.makeSubtask(task, obs)
+            if task_helper.isTaskDone(task, subtask):
                 task_done = True
                 print(f"[INFO]: frame_id {obs['frame_id']}")
                 break
-            if task_manager.isSubtaskDone(subtask):
+            if task_helper.isSubtaskDone(subtask):
                 print(f"[INFO]: {subtask.subtask_type} Done")
 
-            actions = action_generator.getAction(subtask)
+            actions = subtask_to_action.getAction(subtask, obs)
             self.env.send(actions)
         self.assertTrue(task_done)
 
