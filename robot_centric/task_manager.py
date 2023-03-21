@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from task_utils import Task, TaskType
 
 
-class TaskChecker:
+class TaskManager:
     def __init__(self) -> None:
         self.station_specs = {
             1: {
@@ -345,7 +345,7 @@ if __name__ == "__main__":
         f"-m {args.map_id} \"{args.env_wrapper_name} {args.pipe_name}\""
     env = EnvWrapper(args.pipe_name, launch_command)
 
-    task_checker = TaskChecker()
+    task_checker = TaskManager()
 
     obs = env.reset()
     obs, done = env.recv()

@@ -3,7 +3,7 @@ from typing import Any, Dict
 from task_utils import Subtask, SubtaskType, Task, TaskType
 
 
-class TaskManager:
+class TaskHelper:
     def makeSubtask(self, task: Task, obs: Dict[str, Any]) -> Subtask:
         # NOTE: HACK: we assume all tasks are valid
         if task.task_type == TaskType.BUY:
@@ -60,7 +60,7 @@ class TaskManager:
 
 if __name__ == "__main__":
     # test
-    task_manager = TaskManager()
+    task_manager = TaskHelper()
 
     task = Task(
         TaskType.BUY,
