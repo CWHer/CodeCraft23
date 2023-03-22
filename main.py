@@ -2,10 +2,10 @@ import argparse
 import os
 import random
 
-# from item_centric.agent import ItemBasedAgent
-# from item_centric.scheduler import BaseScheduler
-from robot_centric.agent import RobotBasedAgent
-from robot_centric.scheduler import GreedyScheduler
+from item_centric.agent import ItemBasedAgent
+from item_centric.scheduler import BaseScheduler, GreedyScheduler
+# from robot_centric.agent import RobotBasedAgent
+# from robot_centric.scheduler import GreedyScheduler
 from RobotEnv.env_wrapper import EnvWrapper
 from utils import fixSeed
 
@@ -31,10 +31,10 @@ if __name__ == "__main__":
     env = EnvWrapper(args.pipe_name, launch_command)
 
     fixSeed(args.seed)
+    # scheduler = GreedyScheduler()
+    # agent = RobotBasedAgent(scheduler)
     scheduler = GreedyScheduler()
-    agent = RobotBasedAgent(scheduler)
-    # scheduler = BaseScheduler()
-    # agent = ItemBasedAgent(scheduler)
+    agent = ItemBasedAgent(scheduler)
     env_map = env.reset()
     while True:
         obs, done = env.recv()
@@ -44,4 +44,6 @@ if __name__ == "__main__":
         env.send(actions)
 
     env.close()
-    agent.showStatistics()
+
+    if not args.no_statistics:
+        agent.showStatistics()
