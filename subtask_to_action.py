@@ -63,12 +63,13 @@ class SubtaskToAction:
         self_robot_radius = 0.45 if robot_stat['item_type'] == 0 else 0.53
 
         # parameters that can be tuned
-        collision_predict_time = 0.8
+        collision_predict_time = 1.3
         max_collision_avoidance_lasting_frames = 0  # deprecated
-        avoid_collision_angular_speed = math.pi / 2
+        avoid_collision_angular_speed = math.pi
         avoid_collision_l_speed_ratio = 0.5
 
-        reaching_wall_threshold = 1e-1
+        # if not carry items: longer detect distance
+        reaching_wall_threshold = 2 if robot_stat['item_type'] == 0 else 0.1
         episilon = 1e-1
         frame_time = 0.02
         predict_scale = 0.8
@@ -138,15 +139,23 @@ class SubtaskToAction:
             Forward
             '''
 
-            # reaching edge: stop
-            if ((predicted_x - self_robot_radius <= reaching_wall_threshold or
-                 predicted_x + self_robot_radius >= 50 - reaching_wall_threshold)
-                and abs(cur_line_speed.x) > episilon) or \
-                    ((predicted_y - self_robot_radius <= reaching_wall_threshold or
-                      predicted_y + self_robot_radius >= 50 - reaching_wall_threshold)
-                     and abs(cur_line_speed.y) > episilon):
-                l_speed = 0.5
-                a_speed = min(abs(a_speed * 3), math.pi) * rotate_direction
+            # reaching vertical edges: stop
+            if (predicted_y - self_robot_radius <= reaching_wall_threshold and cur_line_speed.y < - 2) or \
+                    (predicted_y + self_robot_radius >= 50 - reaching_wall_threshold and cur_line_speed.y > 2):
+                # TODO: calculate angle difference
+                # slow down linearly
+                l_speed = max(np.sqrt(
+                    cur_line_speed.y ** 2 + cur_line_speed.x ** 2) / max(cur_line_speed.y, 1), 0.2)
+                a_speed = min(abs(a_speed * 5), math.pi) * rotate_direction
+
+            # reaching horizontal edges: stop
+            elif (predicted_x - self_robot_radius <= reaching_wall_threshold and cur_line_speed.x > 2) or \
+                    (predicted_x + self_robot_radius >= 50 - reaching_wall_threshold and cur_line_speed.x < - 2):
+                # slow down linearly
+                l_speed = max(np.sqrt(
+                    cur_line_speed.y ** 2 + cur_line_speed.x ** 2) / max(cur_line_speed.x, 1), 0.2)
+                a_speed = min(abs(a_speed * 5), math.pi) * rotate_direction
+
             else:
                 # too close
                 if predicted_spatial_distance <= 5:
@@ -273,10 +282,10 @@ class SubtaskToAction:
                                                 np.array([cur_pos.x - robot_pos.x, cur_pos.y - robot_pos.y])) > 0:
                                         # TODO: left and right may be reversed
                                         # turn left
-                                        a_speed = avoid_collision_angular_speed
+                                        a_speed = - avoid_collision_angular_speed
                                     else:
                                         # turn right
-                                        a_speed = - avoid_collision_angular_speed
+                                        a_speed = avoid_collision_angular_speed
 
                                 # same direction: robot with order smaller slow down
                                 # TODO: search for the best speed
