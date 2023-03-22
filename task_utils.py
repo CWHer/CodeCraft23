@@ -31,8 +31,6 @@ class MetaTask:
     #     max(robot_src_time, src_ready_time) + dst_src_time,
     #     dst_ready_time
     # )
-    reach_src: bool = False
-    reach_dst: bool = False
     owned_item: bool = False
 
     robot_id: int = -1
@@ -76,7 +74,6 @@ class Task:
     #     'output_status': 0
     # }
     station_stat: Optional[Dict[str, Any]] = None
-    reach_dst: bool = False
 
     def update(self, obs: Dict[str, Any]):
         self.robot_stat = obs["robots"][self.robot_id]

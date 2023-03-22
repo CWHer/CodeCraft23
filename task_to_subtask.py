@@ -5,14 +5,12 @@ from task_utils import MetaTask, Subtask, SubtaskType, Task, TaskType
 
 class TaskHelper:
     def makeTask(self, meta_task: MetaTask, obs: Dict[str, Any]) -> Task:
-        meta_task.reach_src |= meta_task.robot_stat["station_id"] == meta_task.src_station_id
-        meta_task.reach_dst |= meta_task.robot_stat["station_id"] == meta_task.dst_station_id
-        meta_task.owned_item |= meta_task.robot_stat["item_type"] == meta_task.item_type
+        meta_task.owned_item |= \
+            meta_task.robot_stat["item_type"] == meta_task.item_type
 
         if not meta_task.owned_item:
             task = Task(
                 TaskType.BUY,
-                reach_dst=meta_task.reach_src,
                 item_type=meta_task.item_type,
                 robot_id=meta_task.robot_id,
                 station_id=meta_task.src_station_id
@@ -20,7 +18,6 @@ class TaskHelper:
         else:
             task = Task(
                 TaskType.SELL,
-                reach_dst=meta_task.reach_dst,
                 item_type=meta_task.item_type,
                 robot_id=meta_task.robot_id,
                 station_id=meta_task.dst_station_id
@@ -29,20 +26,24 @@ class TaskHelper:
         task.update(obs)
         return task
 
+    def isMetaTaskDone(self, meta_task: MetaTask) -> bool:
+        return meta_task.owned_item and \
+            meta_task.robot_stat["item_type"] == 0
+
     def makeSubtask(self, task: Task, obs: Dict[str, Any]) -> Subtask:
         # NOTE: HACK: we assume all tasks are valid
         if task.task_type == TaskType.BUY:
-            task.reach_dst |= task.robot_stat["station_id"] == task.station_id
+            reach_dst = task.robot_stat["station_id"] == task.station_id
             subtask = Subtask(
-                SubtaskType.GOTO if not task.reach_dst else SubtaskType.BUY,
+                SubtaskType.GOTO if not reach_dst else SubtaskType.BUY,
                 item_type=task.item_type,
                 robot_id=task.robot_id,
                 station_id=task.station_id
             )
         elif task.task_type == TaskType.SELL:
-            task.reach_dst |= task.robot_stat["station_id"] == task.station_id
+            reach_dst = task.robot_stat["station_id"] == task.station_id
             subtask = Subtask(
-                SubtaskType.GOTO if not task.reach_dst else SubtaskType.SELL,
+                SubtaskType.GOTO if not reach_dst else SubtaskType.SELL,
                 item_type=task.item_type,
                 robot_id=task.robot_id,
                 station_id=task.station_id
@@ -60,18 +61,11 @@ class TaskHelper:
         subtask.update(obs)
         return subtask
 
-    def isMetaTaskDone(self, meta_task: MetaTask) -> bool:
-        return meta_task.reach_src and \
-            meta_task.reach_dst and meta_task.owned_item and \
-            meta_task.robot_stat["item_type"] == 0
-
     def isTaskDone(self, task: Task) -> bool:
         if task.task_type == TaskType.BUY:
-            return task.reach_dst and \
-                task.robot_stat["item_type"] == task.item_type
+            return task.robot_stat["item_type"] == task.item_type
         elif task.task_type == TaskType.SELL:
-            return task.reach_dst and \
-                task.robot_stat["item_type"] == 0
+            return task.robot_stat["item_type"] == 0
         elif task.task_type == TaskType.DESTROY:
             return task.robot_stat["item_type"] == 0
         else:
