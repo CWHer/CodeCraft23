@@ -39,7 +39,8 @@ class GreedyScheduler(BaseScheduler):
         super().__init__()
         self.input_money = [3000, 4400, 5800, 15400, 17200, 19200, 76000]
         self.output_money = [6000, 7600, 9200, 22500, 25000, 27500, 105000]
-        self.delta = np.array(self.output_money) - np.array(self.input_money)
+        # self.delta = np.array(self.output_money) - np.array(self.input_money)
+        self.delta = np.array([100, 100, 100, 300, 300, 300, 1000])
 
     def assign(self,
                obs: Dict[str, Any],
