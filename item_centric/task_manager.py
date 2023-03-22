@@ -102,7 +102,6 @@ class ItemTaskManager:
                  obs: Dict[str, Any],
                  assigned_tasks: List[List[MetaTask]]
                  ) -> List[List[MetaTask]]:
-        # TODO: consider both obs and assigned tasks
         # NOTE: naive esimation,
         #   e.g., src station definitely can produce the item (producing/done)
         # TODO: one stage forward estimation
@@ -134,12 +133,12 @@ class ItemTaskManager:
                     src_station = obs["stations"][i]
                     dst_station = obs["stations"][j]
 
-                    # conflict with reserved tasks
+                    # TODO: conflict with reserved tasks
                     if item_type in reserved_stat[i]["output"] \
                             or item_type in reserved_stat[j]["input"]:
                         continue
 
-                    # FIXME: naive filtering
+                    # naive filtering
                     if src_station["remain_time"] == -1 \
                             and src_station["output_status"] == 0:
                         continue
@@ -160,6 +159,10 @@ class ItemTaskManager:
                         if not (dst_station["input_status"] & (1 << item_type)) or dst_station["output_status"] == 1 \
                         else TimeRange(dst_station["remain_time"], dst_station["remain_time"])
 
+                    # NOTE: record dst station input status
+                    dst_input_status = dst_station["input_status"]
+                    for k in reserved_stat[j]["input"]:
+                        dst_input_status |= 1 << k
                     meta_task = MetaTask(
                         item_type=item_type,
                         src_station_id=i,
@@ -168,6 +171,7 @@ class ItemTaskManager:
                         dst_ready_time=dst_ready_time,
                         dst_src_time=self.betweenStation(
                             src_station, dst_station),
+                        dst_input_status=dst_input_status,
                     )
 
                     item_tasks.append(meta_task)

@@ -33,6 +33,8 @@ class MetaTask:
     # )
     owned_item: bool = False
 
+    dst_input_status: int = 0
+
     robot_id: int = -1
     robot_stat: Dict[str, Any] = dataclasses.field(default_factory=dict)
 

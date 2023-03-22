@@ -79,6 +79,7 @@ class ItemBasedAgent:
 
     def showStatistics(self) -> Dict:
         print(f"[INFO]: Score {self.moneys[-1]}")
+        print(f"[INFO]: Max Score {max(self.moneys)}")
 
         task_durations = [
             task_info["duration"]
