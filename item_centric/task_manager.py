@@ -8,6 +8,8 @@ from task_utils import MetaTask, TimeRange
 class ItemTaskManager:
     def __init__(self) -> None:
         self.item_types = [1, 2, 3, 4, 5, 6, 7]
+        self.sink_stations = [8, 9]
+        self.source_stations = [1, 2, 3]
         self.station_specs = {
             1: {
                 "input": [],
@@ -46,6 +48,26 @@ class ItemTaskManager:
                 "output": []
             },
         }
+        for k, v in self.station_specs.items():
+            input_stat = 0
+            for item_type in v["input"]:
+                input_stat += 1 << item_type
+            v["full"] = input_stat
+        self.item_specs = {
+            item_type: {
+                "src_type": [],
+                "dst_type": [],
+                "src_id": [],
+                "dst_id": [],
+            }
+            for item_type in self.item_types
+        }
+        for k, v in self.station_specs.items():
+            for item_type in v["input"]:
+                self.item_specs[item_type]["dst_type"].append(k)
+            for item_type in v["output"]:
+                self.item_specs[item_type]["src_type"].append(k)
+        self.station_by_types = None
 
     @staticmethod
     def moveTimeEst(src: np.ndarray, dst: np.ndarray) -> float:
@@ -61,6 +83,21 @@ class ItemTaskManager:
             np.array([dst["loc_x"], dst["loc_y"]])
         )
 
+    def currentTaskStat(self, assigned_tasks: List[List[MetaTask]]) -> Dict[int, Any]:
+        reserved_stat = {
+            i: {"input": [], "output": []}
+            for i in range(self.num_stations)
+        }
+        # TODO: add estimated time
+        for tasks in assigned_tasks:
+            for task in tasks:
+                # fmt: off
+                if not task.owned_item:
+                    reserved_stat[task.src_station_id]["output"].append(task.item_type)
+                reserved_stat[task.dst_station_id]["input"].append(task.item_type)
+                # fmt: on
+        return reserved_stat
+
     def genTasks(self,
                  obs: Dict[str, Any],
                  assigned_tasks: List[List[MetaTask]]
@@ -73,18 +110,33 @@ class ItemTaskManager:
         # TODO: recursive estimation
         #   e.g., src station may lack some input items, and input of input stations also lack some items, ...
 
+        if self.station_by_types is None:
+            self.num_stations = len(obs["stations"])
+            self.station_by_types = {
+                station_type: []
+                for station_type in self.station_specs.keys()
+            }
+            for i, station in enumerate(obs["stations"]):
+                self.station_by_types[station["station_type"]].append(i)
+            for item_type in self.item_specs:
+                for station_type in self.item_specs[item_type]["src_type"]:
+                    self.item_specs[item_type]["src_id"] += self.station_by_types[station_type]
+                for station_type in self.item_specs[item_type]["dst_type"]:
+                    self.item_specs[item_type]["dst_id"] += self.station_by_types[station_type]
+
+        reserved_stat = self.currentTaskStat(assigned_tasks)
+
         tasks_per_item = []
         for item_type in self.item_types:
             item_tasks = []
-            for i, src_station in enumerate(obs["stations"]):
-                src_type = src_station["station_type"]
-                if not item_type in \
-                        self.station_specs[src_type]["output"]:
-                    continue
-                for j, dst_station in enumerate(obs["stations"]):
-                    dst_type = dst_station["station_type"]
-                    if not item_type in \
-                            self.station_specs[dst_type]["input"]:
+            for i in self.item_specs[item_type]["src_id"]:
+                for j in self.item_specs[item_type]["dst_id"]:
+                    src_station = obs["stations"][i]
+                    dst_station = obs["stations"][j]
+
+                    # conflict with reserved tasks
+                    if item_type in reserved_stat[i]["output"] \
+                            or item_type in reserved_stat[j]["input"]:
                         continue
 
                     # FIXME: naive filtering
@@ -94,7 +146,13 @@ class ItemTaskManager:
                     src_ready_time = TimeRange(0, 0) \
                         if src_station["output_status"] == 1 \
                         else TimeRange(src_station["remain_time"], src_station["remain_time"])
+                    # 1. lack this item
+                    # 2. input full but producing not done
+                    full_stat = self.station_specs[dst_station["station_type"]]["full"]
                     if dst_station["input_status"] & (1 << item_type) \
+                            and dst_station["input_status"] != full_stat:
+                        continue
+                    if dst_station["input_status"] == full_stat \
                             and dst_station["remain_time"] >= 0 \
                             and dst_station["output_status"] == 1:
                         continue
