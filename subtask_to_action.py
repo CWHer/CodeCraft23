@@ -1,6 +1,6 @@
 import math
 from collections import namedtuple
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -32,7 +32,7 @@ def isIntersect(p1, p2, p3, p4):
 
 
 class SubtaskToAction:
-    def __init__(self):
+    def __init__(self, params: Optional[Dict] = None):
         self.Range = namedtuple("Range", ["min", "max"])
         self.Point = namedtuple("Point", ["x", "y"])
         self.Vec = namedtuple("Vec", ["x", "y"])
@@ -51,6 +51,21 @@ class SubtaskToAction:
         # self.moving_area = [np.zeros((2, self.moving_window_size)) for _ in range(4)]
         # self.area_size_threshold = 5
 
+        # not assigned params: use init ones
+        if not params:
+            self.params = {
+                "collision_predict_time": 1.3,
+                "avoid_collision_angular_speed": math.pi,
+                "avoid_collision_l_speed_ratio": 0.5,
+                "reaching_wall_threshold_1": 2,
+                "reaching_wall_threshold_2": 0.1,
+                "predict_scale": 0.8,
+                "close_angle_difference_penalty_ratio": 5,
+                "angle_difference_penalty_speed": 3,
+            }
+        else:
+            self.params = params
+
     # get action from a single subtask
     def getAction(self, subtask: Subtask, obs: Dict[str, Any]) -> List[str]:
         robot_id, robot_stat = subtask.robot_id, subtask.robot_stat
@@ -62,17 +77,22 @@ class SubtaskToAction:
         # radius of robot
         self_robot_radius = 0.45 if robot_stat['item_type'] == 0 else 0.53
 
+        # deciding speed
+        close_angle_difference_penalty_ratio = self.params['close_angle_difference_penalty_ratio']
+        angle_difference_penalty_speed = self.params['angle_difference_penalty_speed']
+
         # parameters that can be tuned
-        collision_predict_time = 1.3
+        collision_predict_time = self.params["collision_predict_time"]
         max_collision_avoidance_lasting_frames = 0  # deprecated
-        avoid_collision_angular_speed = math.pi
-        avoid_collision_l_speed_ratio = 0.5
+        avoid_collision_angular_speed = self.params["avoid_collision_angular_speed"]
+        avoid_collision_l_speed_ratio = self.params["avoid_collision_l_speed_ratio"]
 
         # if not carry items: longer detect distance
-        reaching_wall_threshold = 2 if robot_stat['item_type'] == 0 else 0.1
+        reaching_wall_threshold = self.params['reaching_wall_threshold_1'] \
+            if robot_stat['item_type'] == 0 else self.params['reaching_wall_threshold_2']
+        predict_scale = self.params['predict_scale']
         episilon = 1e-1
         frame_time = 0.02
-        predict_scale = 0.8
 
         # GOTO
         if subtask.subtask_type == SubtaskType.GOTO:
@@ -163,10 +183,11 @@ class SubtaskToAction:
                         if predicted_angle_difference <= math.pi \
                         else math.pi * 2 - predicted_angle_difference
                     l_speed = self.max_line_speed.max * \
-                        (1 / max(normalized_difference * 5, 1))
+                        (1 / max(normalized_difference *
+                         close_angle_difference_penalty_ratio, 1))
                 # angle difference too large: slowly forward and rotate
                 elif math.pi / 2 - episilon <= predicted_angle_difference <= math.pi * 1.5 + episilon:
-                    l_speed = 3
+                    l_speed = angle_difference_penalty_speed
 
                 else:
                     l_speed = 6
@@ -212,7 +233,6 @@ class SubtaskToAction:
                     cur_pos.y + cur_line_speed.y * collision_predict_time
                 )
                 # consider robot's radius
-                self_robot_radius = 0.45 if robot_stat['item_type'] == 0 else 0.53
                 self_vertical_addition = self.Vec(
                     cur_line_speed.y / self_robot_speed_mod * self_robot_radius, -cur_line_speed.x / self_robot_speed_mod * self_robot_radius)
                 # track lines: two lines

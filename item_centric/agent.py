@@ -8,14 +8,16 @@ from .task_manager import ItemTaskManager
 
 
 class ItemBasedAgent:
-    def __init__(self, scheduler: BaseScheduler) -> None:
+    def __init__(self,
+                 scheduler: BaseScheduler,
+                 movement_params=None) -> None:
         self.num_robots = 4
         self.reset()
 
         self.scheduler = scheduler
         self.task_manager = ItemTaskManager()
         self.task_helper = TaskHelper()
-        self.subtask_to_action = SubtaskToAction()
+        self.subtask_to_action = SubtaskToAction(movement_params)
 
     def reset(self):
         self.last_obs = None
