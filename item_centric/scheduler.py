@@ -7,7 +7,6 @@ from task_utils import MetaTask
 
 class BaseScheduler:
     def __init__(self) -> None:
-        random.seed(1927)
         self.num_robots = 4
 
     def assign(self,
