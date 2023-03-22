@@ -50,15 +50,22 @@ class ItemBasedAgent:
             i for i in range(self.num_robots)
             if not self.assigned_tasks[i]
         ]
-        if idle_indices:
-            # fmt: off
-            candidate_tasks = self.task_manager.genTasks(obs, self.assigned_tasks)
-            # TODO: candidate_tasks = self.task_manager.filterInvalidTasks(candidate_tasks, obs)
-            self.scheduler.assign(obs, candidate_tasks, self.assigned_tasks)
-            # fmt: on
+        for _ in range(len(idle_indices)):
+            candidate_tasks = \
+                self.task_manager.genTasks(
+                    obs, self.assigned_tasks)
+            result = self.scheduler.assign(
+                obs, candidate_tasks, self.assigned_tasks)
+            if not result:
+                break
         for index in idle_indices:
-            self.last_frame[index] = obs["frame_id"]
-
+            if self.assigned_tasks[index]:
+                self.last_frame[index] = obs["frame_id"]
+            else:
+                print(
+                    f"[INFO]: Robot {index} is idle "
+                    f"at frame {obs['frame_id']}"
+                )
         # control
         actions = [" "]
         for meta_tasks in self.assigned_tasks:
