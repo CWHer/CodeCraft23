@@ -34,20 +34,26 @@ class BaseScheduler:
 
 
 class GreedyScheduler(BaseScheduler):
-    def __init__(self) -> None:
+    def __init__(self,
+                 params: Dict[str, np.ndarray] = {
+                     "item_delta": np.array([100, 100, 100, 300, 300, 300, 900]),
+                     "station_type_delta": np.array([0, 0, 0, 0, 0, 0, 0, -50, -50]),
+                     "station_input_delta": np.array([0, 0, 0, 0, 0, 0, 0, 0])
+                 }
+                 ) -> None:
         super().__init__()
         self.input_money = [3000, 4400, 5800, 15400, 17200, 19200, 76000]
         self.output_money = [6000, 7600, 9200, 22500, 25000, 27500, 105000]
         # self.delta = np.array(self.output_money) - np.array(self.input_money)
-        self.delta = np.array([100, 100, 100, 300, 300, 300, 900])
-        self.station_type_delta = np.array([0, 0, 0, 0, 0, 0, 0, -50, -50])
-        self.station_input_delta = np.array([0, 0, 0, 0, 0, 0, 0, 0])
+        self.item_delta = params["item_delta"]
+        self.station_type_delta = params["station_type_delta"]
+        self.station_input_delta = params["station_input_delta"]
 
     def priorityValue(self,
                       task: MetaTask,
                       estimated_total_time: float,
                       obs: Dict[str, Any]) -> float:
-        item_value = self.delta[task.item_type - 1] * \
+        item_value = self.item_delta[task.item_type - 1] * \
             decayFunc(estimated_total_time, 9000, 0.8)
         src_station_type = obs["stations"][task.src_station_id]["station_type"]
         dst_station_type = obs["stations"][task.dst_station_id]["station_type"]
