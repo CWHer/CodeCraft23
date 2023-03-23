@@ -64,10 +64,11 @@ class ItemBasedAgent:
             if self.assigned_tasks[index]:
                 self.last_frame[index] = obs["frame_id"]
             else:
-                print(
-                    f"[INFO]: Robot {index} is idle "
-                    f"at frame {obs['frame_id']}"
-                )
+                pass
+                # print(
+                #     f"[INFO]: Robot {index} is idle "
+                #     f"at frame {obs['frame_id']}"
+                # )
         # control
         actions = [" "]
         for meta_tasks in self.assigned_tasks:
