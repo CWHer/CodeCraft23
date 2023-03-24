@@ -15,6 +15,7 @@ class JudgeEnv:
             if line == self.END_TOKEN:
                 break
             self.env_map.append(line)
+        return self.env_map
         # print(self.env_map, file=sys.stderr)
 
     def _writeDone(self):
