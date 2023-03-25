@@ -1,6 +1,4 @@
-from typing import Any, Dict, List
-
-import numpy as np
+from typing import Any, Dict, List, Tuple
 
 from task_utils import MetaTask, TimeRange
 
@@ -70,17 +68,17 @@ class ItemTaskManager:
         self.station_by_types = None
 
     @staticmethod
-    def moveTimeEst(src: np.ndarray, dst: np.ndarray) -> float:
+    def moveTimeEst(src: Tuple, dst: Tuple) -> float:
         max_speed = 6
         scale_factor = 1.1 / max_speed
         return scale_factor * \
-            np.linalg.norm(np.array(src) - np.array(dst)).item()
+            ((src[0] - dst[0]) ** 2 + (src[1] - dst[1]) ** 2) ** 0.5
 
     @staticmethod
     def betweenStation(src: Dict, dst: Dict) -> float:
         return ItemTaskManager.moveTimeEst(
-            np.array([src["loc_x"], src["loc_y"]]),
-            np.array([dst["loc_x"], dst["loc_y"]])
+            (src["loc_x"], src["loc_y"]),
+            (dst["loc_x"], dst["loc_y"])
         )
 
     def currentTaskStat(self, assigned_tasks: List[List[MetaTask]]) -> Dict[int, Any]:
