@@ -59,6 +59,9 @@ if __name__ == "__main__":
     init_value = fitnessFunc(param)
     print("[CMA-ES] Initial value: ", init_value)
     es = CMAEvolutionStrategy(param, 10)
-    es.optimize(fitnessFunc, iterations=100, verb_disp=10)
+    es.optimize(
+        fitnessFunc, iterations=100, verb_disp=10,
+        callback=lambda x: print("[{}]".format(','.join(map(str, x.result[0]))))
+    )
     value = fitnessFunc(es.result[0])
     print("[CMA-ES] Final result: ", es.result[0], value)
