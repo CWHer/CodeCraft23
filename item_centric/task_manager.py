@@ -132,8 +132,16 @@ class ItemTaskManager:
                     dst_station = obs["stations"][j]
 
                     # TODO: conflict with reserved tasks
-                    if item_type in reserved_stat[i]["output"] \
-                            or item_type in reserved_stat[j]["input"]:
+                    output_item_count = sum(
+                        [task == item_type for task in reserved_stat[i]["output"]]
+                    )
+                    if item_type in [1, 2, 3] \
+                            and output_item_count >= 2:
+                        continue
+                    if item_type not in [1, 2, 3] \
+                            and output_item_count >= 1:
+                        continue
+                    if item_type in reserved_stat[j]["input"]:
                         continue
 
                     # naive filtering
@@ -143,6 +151,7 @@ class ItemTaskManager:
                     src_ready_time = TimeRange(0, 0) \
                         if src_station["output_status"] == 1 \
                         else TimeRange(src_station["remain_time"], src_station["remain_time"])
+                    penalty = 0 if output_item_count == 0 else -20
                     # 1. lack this item
                     # 2. input full but producing not done
                     full_stat = self.station_specs[dst_station["station_type"]]["full"]
@@ -167,6 +176,7 @@ class ItemTaskManager:
                         dst_station_id=j,
                         src_ready_time=src_ready_time,
                         dst_ready_time=dst_ready_time,
+                        penalty=penalty,
                         dst_src_time=self.betweenStation(
                             src_station, dst_station),
                         dst_input_status=dst_input_status,

@@ -26,6 +26,7 @@ class MetaTask:
     dst_src_time: float  # robot goto dst from src
     # robot_src_time: float = float("inf")  # robot goto src
 
+    penalty: float = 0  # multiple robots to the same task
     # NOTE:
     # estimated_total_time = max(
     #     max(robot_src_time, src_ready_time) + dst_src_time,
