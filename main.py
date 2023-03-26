@@ -1,23 +1,37 @@
 import argparse
 
-from item_centric.agent import ItemBasedAgent
-from item_centric.scheduler import GreedyScheduler
 from judge_env import JudgeEnv
+from replay_agent import ReplayAgent
 from utils import fixSeed
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--show-statistics",
-                        default=False, action="store_true")
     parser.add_argument("--seed", default=0, type=int)
     args = parser.parse_args()
 
     env = JudgeEnv()
     fixSeed(args.seed)
-    scheduler = GreedyScheduler()
-    agent = ItemBasedAgent(scheduler)
     env_map = env.reset()
+    map1_line = ".....................................4..4..A..7..7..7..A..6..6......................................"
+    map2_line = ".5......................8....1.................A.4.A.................1....8.......................5."
+    map3_line = ".4......4.....4...................................................................6.....6.....6....."
+    map4_line = "..............2..................................2..................................2..............."
+    if map1_line in env_map:
+        import map1_tasks
+        assigned_tasks = map1_tasks.assigned_tasks
+    elif map2_line in env_map:
+        import map2_tasks
+        assigned_tasks = map2_tasks.assigned_tasks
+    elif map3_line in env_map:
+        import map3_tasks
+        assigned_tasks = map3_tasks.assigned_tasks
+    elif map4_line in env_map:
+        import map4_tasks
+        assigned_tasks = map4_tasks.assigned_tasks
+    else:
+        raise ValueError("Unknown map")
+    agent = ReplayAgent(assigned_tasks)
     env._writeDone()
     while True:
         obs, done = env.recv()
@@ -25,6 +39,3 @@ if __name__ == "__main__":
             break
         actions = agent.step(obs)
         env.send(actions)
-
-    if args.show_statistics:
-        agent.showStatistics()
