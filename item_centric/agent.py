@@ -1,6 +1,5 @@
 from typing import Dict, List
 
-from subtask_to_action import SubtaskToAction
 from task_to_subtask import TaskHelper
 
 from .scheduler import BaseScheduler
@@ -10,6 +9,7 @@ from .task_manager import ItemTaskManager
 class ItemBasedAgent:
     def __init__(self,
                  scheduler: BaseScheduler,
+                 use_revised_control=False,
                  movement_params=None) -> None:
         self.num_robots = 4
         self.reset()
@@ -17,7 +17,12 @@ class ItemBasedAgent:
         self.scheduler = scheduler
         self.task_manager = ItemTaskManager()
         self.task_helper = TaskHelper()
-        self.subtask_to_action = SubtaskToAction(movement_params)
+        if not use_revised_control:
+            from subtask_to_action import SubtaskToAction
+            self.subtask_to_action = SubtaskToAction(movement_params)
+        else:
+            from subtask_to_action_revised import SubtaskToAction
+            self.subtask_to_action = SubtaskToAction(movement_params)
 
     def reset(self):
         self.last_obs = None
