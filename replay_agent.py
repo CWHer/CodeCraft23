@@ -1,19 +1,19 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
-from subtask_to_action import SubtaskToAction
 from task_to_subtask import TaskHelper
 
 
 class ReplayAgent:
     def __init__(self,
                  assigned_tasks: List[List],
+                 subtask_to_action: Any,
                  movement_params=None) -> None:
         self.num_robots = 4
         self.moneys = []
         self.assigned_tasks = assigned_tasks
 
         self.task_helper = TaskHelper()
-        self.subtask_to_action = SubtaskToAction(movement_params)
+        self.subtask_to_action = subtask_to_action
 
     def step(self, obs: Dict) -> List[str]:
         assert obs is not None

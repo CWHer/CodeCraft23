@@ -20,18 +20,26 @@ if __name__ == "__main__":
     if map1_line in env_map:
         import map1_tasks
         assigned_tasks = map1_tasks.assigned_tasks
+        from subtask_to_action_revised import SubtaskToAction
+        subtask_to_action = SubtaskToAction()
     elif map2_line in env_map:
         import map2_tasks
         assigned_tasks = map2_tasks.assigned_tasks
+        from subtask_to_action import SubtaskToAction
+        subtask_to_action = SubtaskToAction()
     elif map3_line in env_map:
         import map3_tasks
         assigned_tasks = map3_tasks.assigned_tasks
+        from subtask_to_action import SubtaskToAction
+        subtask_to_action = SubtaskToAction()
     elif map4_line in env_map:
         import map4_tasks
         assigned_tasks = map4_tasks.assigned_tasks
+        from subtask_to_action_revised import SubtaskToAction
+        subtask_to_action = SubtaskToAction()
     else:
         raise ValueError("Unknown map")
-    agent = ReplayAgent(assigned_tasks)
+    agent = ReplayAgent(assigned_tasks, subtask_to_action)
     env._writeDone()
     while True:
         obs, done = env.recv()
