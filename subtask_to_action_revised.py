@@ -305,7 +305,8 @@ class SubtaskToAction:
                             (isBetween(self_track_lines[1][0], track_lines[0][0], track_lines[0][1], track_lines[1][0], track_lines[1][1]) and
                                 isBetween(self_track_lines[1][1], track_lines[0][0], track_lines[0][1], track_lines[1][0], track_lines[1][1])):
                             # check if same direction: pass
-                            if np.dot(np.array([cur_line_speed.x, cur_line_speed.y]), np.array([robot['line_speed_x'], robot['line_speed_y']])) >= episilon:
+                            if np.dot(np.array([cur_line_speed.x, cur_line_speed.y]),
+                                      np.array([robot['line_speed_x'], robot['line_speed_y']])) >= episilon:
                                 pass
                             # opposite direction: check distance
                             elif np.sqrt((cur_pos.x - robot_pos.x) ** 2 + (cur_pos.y - robot_pos.y) ** 2) <= self_robot_radius + robot_radius or \
@@ -354,7 +355,7 @@ class SubtaskToAction:
                                 if self_angle < 0:
                                     self_angle += 2 * np.pi
                                 robot_angle = np.arctan2(
-                                    - robot['line_speed_y'], - robot['line_speed_x'])
+                                    -robot['line_speed_y'], -robot['line_speed_x'])
                                 if robot_angle < 0:
                                     robot_angle += 2 * np.pi
                                 angle_diff = self_angle - robot_angle
@@ -362,7 +363,7 @@ class SubtaskToAction:
                                     angle_diff += 2 * np.pi
 
                                 # if angle diff is large: slow down
-                                if min(angle_diff, 2*math.pi-angle_diff) > same_direction_threshold:
+                                if min(angle_diff, 2 * math.pi-angle_diff) > same_direction_threshold:
                                     # slow down
                                     if self_arriving_time > robot_arriving_time:
                                         # search for maximum speed
