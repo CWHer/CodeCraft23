@@ -105,7 +105,8 @@ class GreedyScheduler(BaseScheduler):
                 if estimated_total_time + obs["frame_id"] >= 9000:
                     continue
 
-                delta = self.priorityValue(task, estimated_total_time, obs)
+                delta = self.priorityValue(
+                    task, estimated_total_time, obs) + task.penalty
                 efficiency = delta / estimated_total_time
                 if efficiency > max_efficiency:
                     max_efficiency = efficiency
