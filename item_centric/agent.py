@@ -84,7 +84,7 @@ class ItemBasedAgent:
 
         return actions
 
-    def showStatistics(self) -> Dict:
+    def showStatistics(self, save_unfinished: bool = False) -> Dict:
         print(f"[INFO]: Score {self.moneys[-1]}")
         print(f"[INFO]: Max Score {max(self.moneys)}")
 
@@ -98,6 +98,13 @@ class ItemBasedAgent:
                     f"[INFO]: Unfinished - Robot {i}, item {task.item_type}, "
                     f"src station {task.src_station_id}, dst station {task.dst_station_id}"
                 )
+            if save_unfinished:
+                self.task_log.append({
+                    "start_time": self.last_frame[i],
+                    "end_time": self.last_obs["frame_id"],
+                    "duration": self.last_obs["frame_id"] - self.last_frame[i],
+                    "task_info": task,
+                })
             if meta_tasks:
                 task_durations.append(
                     self.last_obs["frame_id"] - self.last_frame[i])
@@ -142,6 +149,7 @@ class ReplayAgent:
         self.assigned_tasks = assigned_tasks
 
         self.task_helper = TaskHelper()
+        from subtask_to_action import SubtaskToAction
         self.subtask_to_action = SubtaskToAction(movement_params)
 
     def step(self, obs: Dict) -> List[str]:

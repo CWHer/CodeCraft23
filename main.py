@@ -21,6 +21,7 @@ if __name__ == "__main__":
     parser.add_argument("--env-wrapper-name", default="./env_wrapper")
     parser.add_argument("--pipe-name", default=f"/tmp/pipe_{random.random()}")
     parser.add_argument("--no-statistics", default=False, action="store_true")
+    parser.add_argument("--save-unfinished", default=False, action="store_true")
     parser.add_argument("--seed", default=0, type=int)
     args = parser.parse_args()
     robot_env_path = os.path.join(os.path.dirname(__file__), "RobotEnv")
@@ -81,4 +82,4 @@ if __name__ == "__main__":
     env.close()
 
     if not args.no_statistics:
-        agent.showStatistics()
+        agent.showStatistics(args.save_unfinished)
